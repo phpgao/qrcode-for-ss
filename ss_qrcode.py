@@ -1,12 +1,12 @@
-from flask import Flask,send_file
+from flask import Flask,send_file,request
 import StringIO
 import base64
 import io
 import re
 import urllib2
 import qrcode
+import json
 
-is_debug = False
 
 path = dict()
 path['method'] = '/root/.kiwivm-shadowsocks-encryption'
@@ -15,15 +15,24 @@ path['port'] = '/root/.kiwivm-shadowsocks-port'
 
 app = Flask(__name__)
 
-@app.route("/")
-def generateQRImage():
+@app.route("/", methods=['GET'])
+def get_qrcode():
+    if request.method == 'GET':
+        if request.args.get('type', None) == "json":
+            return json.dumps(get_ss_info())
+        else:
+            return generateQRImage(gen_ss_code())
+
+
+
+def generateQRImage(your_string):
 
     qr = qrcode.QRCode(version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=10,
             border=4,
             )
-    qr.add_data(gen_ss_code())
+    qr.add_data(your_string)
     qr.make(fit=True)
 
     # creates qrcode base64
@@ -52,17 +61,16 @@ def get_ss_info(file=True):
     else:
         pass
 
-    return gen_config_str(config)
+    return config
 
 def gen_config_str(config):
     return "%s:%s@%s:%s" % (config['method'], config['password'], config['ip'], config['port'])
 
-def gen_ss_code(transfer_to_qrcode=True):
-    config_string = get_ss_info()
-    if transfer_to_qrcode:
-        config_string = base64.b64encode(config_string)
-        config_string = "ss://" + config_string
+def gen_ss_code():
+    config_string = gen_config_str(get_ss_info())
+    config_string = base64.b64encode(config_string)
+    config_string = "ss://" + config_string
     return config_string
 
 if __name__ == '__main__':
-    app.run(debug=is_debug,host='0.0.0.0', port=9537)
+    app.run(debug=True,host='0.0.0.0', port=9537)
